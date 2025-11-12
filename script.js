@@ -2,10 +2,12 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // --- VARIABLES GLOBALES ---
 let camera, scene, renderer;
-let model; // Variable para guardar tu modelo
+let model; // 
+let controls; // Variable para los controles de la cámara
 
 // --- INICIALIZACIÓN ---
 init();
@@ -13,71 +15,70 @@ init();
 function init() {
     // 1. Escena
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222); // Fondo gris oscuro
+    scene.background = new THREE.Color(0x222222);
 
     // 2. Cámara
-    // La cámara se moverá automáticamente por la VR, pero la definimos
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 1.6, 0); // Posición inicial (altura de ojos aprox)
-    scene.add(camera);
+    // --- CAMBIO ---
+    // La movemos más lejos para asegurar que vemos el modelo
+    camera.position.set(0, 2, 10); // 2m arriba, 10m atrás
 
     // 3. Luces
-    // Luz ambiental (para que no esté todo negro)
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
-
-    // Luz direccional (simula el sol)
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(1, 2, 3);
     scene.add(directionalLight);
+
+    // --- NUEVO: Añadimos una cuadrícula (GridHelper) como referencia ---
+    const gridHelper = new THREE.GridHelper(20, 20); // 20x20 metros
+    scene.add(gridHelper);
 
     // 4. Renderizador (Renderer)
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     
-    // --- HABILITACIÓN DE VR ---
-    renderer.xr.enabled = true; // ¡El paso más importante para VR!
+    // Habilitación de VR
+    renderer.xr.enabled = true;
     document.body.appendChild(renderer.domElement);
     
     // 5. Botón de VR
-    // Añade el botón "ENTER VR" al cuerpo del HTML
     document.body.appendChild(VRButton.createButton(renderer));
+    
+    // --- NUEVO: Inicializamos los OrbitControls ---
+    // Pasamos la cámara y el canvas del renderer
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; // Efecto de "desaceleración" suave
+    controls.target.set(0, 1, 0); // Hacemos que la cámara mire hacia 1m de altura
+    controls.update();
 
     // 6. Cargar el modelo FBX
     const loader = new FBXLoader();
     loader.load(
         'Mod_1/Mod_1.fbx', // La ruta a tu modelo
         
-        // onLoad (cuando se carga correctamente)
         (fbx) => {
             model = fbx;
 
-            // --- AJUSTES DEL MODELO ---
-            // Los modelos FBX a veces son muy grandes o muy pequeños.
-            // Ajusta la escala si es necesario.
-            // model.scale.set(0.01, 0.01, 0.01); 
 
-            // Posiciona el modelo frente a la cámara
-            model.position.set(0, 1, -2); // 1m arriba, 2m adelante
+            // Posicionamos el modelo en el centro de la cuadrícula
+            model.position.set(0, 0, 0);
             
             scene.add(model);
             console.log("Modelo cargado exitosamente.");
         },
         
-        // onProgress (mientras se carga)
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% cargado');
         },
         
-        // onError (si hay un error)
         (error) => {
             console.error('Error al cargar el modelo FBX:', error);
         }
     );
     
     // 7. Loop de Animación
-    // Usamos setAnimationLoop para VR en lugar de requestAnimationFrame
     renderer.setAnimationLoop(animate);
 
     // 8. Manejar redimensionamiento de ventana
@@ -87,10 +88,8 @@ function init() {
 // --- FUNCIONES AUXILIARES ---
 
 function animate() {
-    // Aquí puedes agregar animaciones (ej. si el modelo se mueve)
-    // if (model) {
-    //     model.rotation.y += 0.01;
-    // }
+   
+    controls.update();
 
     // Renderizar la escena
     renderer.render(scene, camera);
