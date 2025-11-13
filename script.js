@@ -59,7 +59,7 @@ function init() {
     // 6. Cargar el modelo FBX
     const loader = new FBXLoader();
     loader.load(
-        'Mod_1.fbx', // La ruta a tu modelo
+        'Mod_1/Mod_1.fbx', // La ruta a tu modelo
         
         (fbx) => {
             model = fbx;
@@ -106,3 +106,4 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+
