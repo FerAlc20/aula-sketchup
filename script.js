@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // --- VARIABLES GLOBALES ---
 let camera, scene, renderer;
-let model; // 
+let model; // Variable para guardar tu modelo
 let controls; // Variable para los controles de la cámara
 
 // --- INICIALIZACIÓN ---
@@ -19,9 +19,10 @@ function init() {
 
     // 2. Cámara
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // --- CAMBIO ---
-    // La movemos más lejos para asegurar que vemos el modelo
-    camera.position.set(0, 2, 10); // 2m arriba, 10m atrás
+    // --- POSICIÓN AJUSTADA ---
+    // (X=3 a la derecha, Y=2.5 de altura, Z=8 de distancia)
+    // Esto es "enfrente" del profesor, fuera de la ventana.
+    camera.position.set(3, 2.5, 8);
 
     // 3. Luces
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -30,8 +31,8 @@ function init() {
     directionalLight.position.set(1, 2, 3);
     scene.add(directionalLight);
 
-    // --- NUEVO: Añadimos una cuadrícula (GridHelper) como referencia ---
-    const gridHelper = new THREE.GridHelper(20, 20); // 20x20 metros
+    // Añadimos una cuadrícula (GridHelper) como referencia
+    const gridHelper = new THREE.GridHelper(20, 20);
     scene.add(gridHelper);
 
     // 4. Renderizador (Renderer)
@@ -46,23 +47,31 @@ function init() {
     // 5. Botón de VR
     document.body.appendChild(VRButton.createButton(renderer));
     
-    // --- NUEVO: Inicializamos los OrbitControls ---
-    // Pasamos la cámara y el canvas del renderer
+    // Inicializamos los OrbitControls
     controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true; // Efecto de "desaceleración" suave
-    controls.target.set(0, 1, 0); // Hacemos que la cámara mire hacia 1m de altura
+    controls.enableDamping = true;
+    
+    // --- OBJETIVO AJUSTADO ---
+    // Hacemos que la cámara apunte al profesor (altura de ojos 1.6m en el origen)
+    controls.target.set(0, 1.6, 0); 
     controls.update();
 
     // 6. Cargar el modelo FBX
     const loader = new FBXLoader();
     loader.load(
-        'Mod_1/Mod_1.fbx', // La ruta a tu modelo
+        'Mod_1.fbx', // La ruta a tu modelo
         
         (fbx) => {
             model = fbx;
 
+            // --- AJUSTES DEL MODELO (DESCOMENTA SI ES NECESARIO) ---
+            
+            // Si el modelo aparece "acostado"
+            // model.rotation.x = -Math.PI / 2; 
 
-            // Posicionamos el modelo en el centro de la cuadrícula
+            // Si es muy grande o muy pequeño
+            // model.scale.set(0.01, 0.01, 0.01); 
+
             model.position.set(0, 0, 0);
             
             scene.add(model);
@@ -88,10 +97,7 @@ function init() {
 // --- FUNCIONES AUXILIARES ---
 
 function animate() {
-   
     controls.update();
-
-    // Renderizar la escena
     renderer.render(scene, camera);
 }
 
