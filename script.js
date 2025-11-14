@@ -69,19 +69,14 @@ function init() {
             model = fbx;
 
             // --- ¡SOLUCIÓN DE POSICIÓN #1: CENTRAR EL MODELO! ---
-            // 1. Encontramos el centro del salón (que está lejos)
             const bbox = new THREE.Box3().setFromObject(model);
             const center = bbox.getCenter(new THREE.Vector3());
 
-            // 2. Movemos el *modelo* para que su centro esté en (0,0,0)
             model.position.x -= center.x;
             model.position.z -= center.z;
-            
-            // 3. Movemos el modelo para que su *piso* toque el suelo (Y=0)
             model.position.y -= bbox.min.y;
 
             // --- LÓGICA DE TEXTURAS (SIMPLIFICADA) ---
-            // Esto arreglará el color y no debería romper el piso.
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -100,16 +95,13 @@ function init() {
             vrGroup = new THREE.Group();
             vrGroup.add(model); // Añadimos el modelo ya centrado al grupo
 
-            // AHORA movemos el grupo para ponerte en la 'X'
-            // La 'X' está a la derecha (+X) y adelante (+Z) del salón.
-            // Para moverte a TI a esa posición, movemos el MUNDO al revés.
-            // (Estos valores son mi mejor estimación de tu 'X')
+            // (X=-5 te mueve a la derecha, Z=-4 te mueve hacia la ventana)
             vrGroup.position.set(-5, 0, -4); 
             
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
         },
-       s
+        // --- LÍNEA CORREGIDA (SE ELIMINÓ LA 's') ---
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% cargado');
         },
