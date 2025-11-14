@@ -20,24 +20,28 @@ function init() {
 
     // 2. Cámara
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // Posición para modo ESCRITORIO (vista de "Dios" desde arriba)
     camera.position.set(10, 15, 10);
 
     // 3. Luces
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
     
-    // Usamos una luz direccional (Sol) para la vista exterior
+    // Luz direccional (Sol) para la vista exterior
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
     directionalLight.position.set(5, 10, 7.5);
     scene.add(directionalLight);
+
+    // Luz interna para que se vea bien en VR
+    const pointLight = new THREE.PointLight(0xffffff, 1.0, 15);
+    pointLight.position.set(0, 2, 0); // La pondremos en el centro del salón
+    scene.add(pointLight);
 
     // Añadimos una cuadrícula (GridHelper) como referencia
     const gridHelper = new THREE.GridHelper(20, 20);
     scene.add(gridHelper);
 
     // 4. Renderizador (Renderer)
-    renderer = new THREE.WebGLRenderer({ antias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     
@@ -65,26 +69,36 @@ function init() {
     loader.load(
         'Mod_1/Mod_1.fbx',
         
+        // -- onLoad (Cuando se carga bien) --
         (fbx) => {
             model = fbx;
 
+          
             const bbox = new THREE.Box3().setFromObject(model);
             const center = bbox.getCenter(new THREE.Vector3());
 
             model.position.x -= center.x;
             model.position.z -= center.z;
+            
             model.position.y -= bbox.min.y;
 
-            // --- LÓGICA DE TEXTURAS (SIMPLIFICADA) ---
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     
                     const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    
                     materials.forEach(mat => {
                         if (mat && mat.map) {
                             mat.map.encoding = THREE.sRGBEncoding;
+
+                            if (mat.map.image && mat.map.image.src.toLowerCase().endsWith('.png')) {
+                                mat.transparent = true; // Hacer transparente
+                                mat.alphaTest = 0.1; // Evita bordes feos
+                            } else {
+                                mat.transparent = false;
+                            }
                         }
                     });
                 }
@@ -93,16 +107,21 @@ function init() {
             vrGroup = new THREE.Group();
             vrGroup.add(model); // Añadimos el modelo ya centrado al grupo
 
+       
+          
             vrGroup.position.set(-5, 0, -4); 
             
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
         },
         
+   
+      
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% cargado');
         },
         
+        // -- onError (Si falla) --
         (error) => {
             console.error('Error al cargar el modelo FBX:', error);
         }
