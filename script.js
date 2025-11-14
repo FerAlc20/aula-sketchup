@@ -23,14 +23,11 @@ function init() {
     // Posición para modo ESCRITORIO (fuera de la ventana)
     camera.position.set(3, 2.2, 5);
 
-    // 3. Luces (¡CAMBIOS IMPORTANTES!)
-    // Luz ambiental más fuerte para que no se vea negro
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    // 3. Luces
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); // Luz ambiental más fuerte
     scene.add(ambientLight);
     
-    // Luz hemisférica: Da una iluminación global suave, ideal para VR.
-    // (Color del cielo, color del suelo, intensidad)
-    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0); // Luz suave
     hemisphereLight.position.set(0, 3, 0);
     scene.add(hemisphereLight);
 
@@ -43,7 +40,6 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     
-    // Ajuste de color
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.shadowMap.enabled = true;
     
@@ -70,32 +66,47 @@ function init() {
         (fbx) => {
             model = fbx;
 
-            // --- AJUSTE DE TEXTURAS Y TRANSPARENCIA (¡CAMBIO IMPORTANTE!) ---
+            // --- ¡NUEVA LÓGICA DE TEXTURAS! ---
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     
-                    // Si el material tiene una textura (map)...
-                    if (child.material && child.material.map) {
-                        child.material.map.encoding = THREE.sRGBEncoding;
+                    if (child.material) {
+                        // Función para procesar cada material
+                        const processMaterial = (mat) => {
+                            if (mat.map) {
+                                // Siempre ajustamos la codificación de color
+                                mat.map.encoding = THREE.sRGBEncoding;
+                                
+                                // REVISAMOS SI LA TEXTURA ES PNG (para el profesor)
+                                if (mat.map.image && mat.map.image.src.toLowerCase().endsWith('.png')) {
+                                    mat.transparent = true; // Hacer transparente
+                                    mat.alphaTest = 0.1; 
+                                } else {
+                                    // Si es JPG (como el piso), NOS ASEGURAMOS de que NO sea transparente
+                                    mat.transparent = false;
+                                }
+                            }
+                        };
                         
-                        // --- FORZAMOS LA TRANSPARENCIA ---
-                        // Esto es para que el "profesor" (que es un PNG) se vea
-                        child.material.transparent = true;
-                        child.material.alphaTest = 0.1; // Evita bordes feos en la transparencia
+                        // Aplicamos la función si es un material o un array de materiales
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(processMaterial);
+                        } else {
+                            processMaterial(child.material);
+                        }
                     }
                 }
             });
 
-            // --- AJUSTE POSICIÓN VR (¡CAMBIO IMPORTANTE!) ---
+            // --- ¡NUEVA POSICIÓN VR! ---
             vrGroup = new THREE.Group();
             vrGroup.add(model);
 
-            // Regresamos la posición del grupo al origen (0,0,0)
-            // Esto hará que aparezcas EN EL ORIGEN (centro del salón)
-            // que es lo que querías.
-            vrGroup.position.set(0, 0, 0); 
+            // Estos valores mueven el *salón* para que TÚ aparezcas en la 'X'
+            // (2 en X te mueve a la izquierda, 3 en Z te mueve adelante)
+            vrGroup.position.set(2, 0, 3); 
             
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
@@ -120,7 +131,6 @@ function init() {
 // --- FUNCIONES AUXILIARES ---
 
 function animate() {
-    // Solo actualiza los OrbitControls si NO estamos en modo VR
     if (renderer.xr.isPresenting === false) {
         controls.update();
     }
