@@ -30,11 +30,8 @@ function init() {
     hemisphereLight.position.set(0, 3, 0);
     scene.add(hemisphereLight);
 
-    // --- LUZ INTERNA AJUSTADA ---
-    // La ponemos en la posición 'X' (donde empiezas en VR)
-    // Coordenadas (-2, 1.5, 3) es aprox. "en la X"
     const pointLight = new THREE.PointLight(0xffffff, 1.5, 10);
-    pointLight.position.set(-2, 1.5, 3); // ¡POSICIÓN AJUSTADA!
+    pointLight.position.set(-2, 1.5, 3);
     scene.add(pointLight);
 
     // Añadimos una cuadrícula (GridHelper) como referencia
@@ -42,7 +39,7 @@ function init() {
     scene.add(gridHelper);
 
     // 4. Renderizador (Renderer)
-    renderer = new THREE.WebGLRenderer({ antias: true });
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     
@@ -72,8 +69,7 @@ function init() {
         (fbx) => {
             model = fbx;
 
-            // --- LÓGICA DE TEXTURAS (SIMPLIFICADA) ---
-            // Eliminamos toda la lógica de transparencia que rompía el piso.
+            // Lógica de texturas (simplificada)
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -85,17 +81,12 @@ function init() {
                 }
             });
 
-            // --- ¡POSICIÓN VR AJUSTADA! ---
+            // Posición VR
             vrGroup = new THREE.Group();
             vrGroup.add(model);
             
-            // Para moverte a la 'X' (izquierda [-X] y adelante [-Z])
-            // movemos el mundo opuesto (derecha [+X] y atrás [+Z])
-            //
-            // MI CÁLCULO ANTERIOR DE Z ESTABA MAL. Debería ser:
-            // X=2 (te mueve 2 a la izquierda)
-            // Z=-3 (te mueve 3 adelante, hacia el pizarrón)
-            vrGroup.position.set(2, 0, -3); // ¡VALOR Z CORREGIDO!
+            // (X=2 te mueve a la izquierda, Z=-3 te mueve adelante)
+            vrGroup.position.set(2, 0, -3); 
             
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
@@ -111,7 +102,8 @@ function init() {
     );
     
     // 7. Loop de Animación
-_    renderer.setAnimationLoop(animate);_
+    // --- LÍNEA CORREGIDA ---
+    renderer.setAnimationLoop(animate);
 
     // 8. Manejar redimensionamiento de ventana
     window.addEventListener('resize', onWindowResize);
