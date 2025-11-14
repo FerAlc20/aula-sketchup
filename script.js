@@ -20,19 +20,21 @@ function init() {
 
     // 2. Cámara
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(3, 2.2, 5); // Posición para modo ESCRITORIO
+    // Posición para modo ESCRITORIO (ver el modelo desde arriba y lejos)
+    camera.position.set(0, 10, 15); // Desde arriba, mirando el centro de la escena
+    camera.lookAt(0, 0, 0); // Que mire al origen
 
     // 3. Luces
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Luz ambiental
     scene.add(ambientLight);
     
-    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
-    hemisphereLight.position.set(0, 3, 0);
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0); // Luz de cielo/suelo
+    hemisphereLight.position.set(0, 10, 0); // Más arriba
     scene.add(hemisphereLight);
 
-    const pointLight = new THREE.PointLight(0xffffff, 1.5, 10);
-    pointLight.position.set(-2, 1.5, 3);
-    scene.add(pointLight);
+    // Luz puntual para iluminar el interior, la pondremos dentro del salón
+    const pointLight = new THREE.PointLight(0xffffff, 1.5, 15); // Intensidad ajustada
+    scene.add(pointLight); // La posicionaremos más tarde junto al modelo
 
     // Añadimos una cuadrícula (GridHelper) como referencia
     const gridHelper = new THREE.GridHelper(20, 20);
@@ -56,7 +58,7 @@ function init() {
     // Inicializamos los OrbitControls (para modo escritorio)
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0, 1.6, 0); 
+    controls.target.set(0, 0, 0); // Mirando al origen de la escena
     controls.update();
 
     // 6. Cargar el modelo FBX
@@ -69,27 +71,63 @@ function init() {
         (fbx) => {
             model = fbx;
 
-            // Lógica de texturas (simplificada)
+            // --- ESCALADO Y ROTACIÓN INICIAL DEL MODELO ---
+            // Si el modelo está muy grande/pequeño o acostado, descomenta y ajusta
+            // model.scale.set(0.01, 0.01, 0.01);
+            // model.rotation.x = -Math.PI / 2; // Si está acostado
+
+            // --- CENTRAMOS EL MODELO EN EL ORIGEN DE LA ESCENA ---
+            // Esto es CRUCIAL para que el vrGroup funcione bien.
+            const bbox = new THREE.Box3().setFromObject(model);
+            const center = bbox.getCenter(new THREE.Vector3());
+            
+            // Mueve el modelo para que su "base" esté en Y=0 y su centro horizontal en X=0, Z=0
+            model.position.x += (model.position.x - center.x);
+            model.position.y += (model.position.y - center.y) + (bbox.max.y - bbox.min.y) / 2; // Asegura que el suelo esté en Y=0
+            model.position.z += (model.position.z - center.z);
+            
+            // --- AJUSTE DE TEXTURAS ---
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     
-                    if (child.material && child.material.map) {
-                        child.material.map.encoding = THREE.sRGBEncoding;
+                    if (child.material) {
+                        // Si es un array de materiales, recorre cada uno
+                        const materials = Array.isArray(child.material) ? child.material : [child.material];
+                        materials.forEach(mat => {
+                            if (mat.map) {
+                                mat.map.encoding = THREE.sRGBEncoding;
+                            }
+                            // Si el material debe ser transparente (como el profesor), asegúrate de ello
+                            // Esto puede depender del nombre de la textura o del material
+                            // Por ahora, asumimos que FBXLoader lo maneja bien si el .png tiene transparencia
+                            // Si el profesor se ve con fondo blanco, necesitarás una lógica más específica aquí.
+                            // Por ejemplo: if (mat.name === "Material_Del_Profesor") { mat.transparent = true; mat.alphaTest = 0.5; }
+                        });
                     }
                 }
             });
 
-            // Posición VR
+            // --- POSICIONAMIENTO VR ---
             vrGroup = new THREE.Group();
             vrGroup.add(model);
             
-            // (X=2 te mueve a la izquierda, Z=-3 te mueve adelante)
-            vrGroup.position.set(2, 0, -3); 
+            // AHORA el modelo está centrado. La "X" está a la izquierda y adelante del profesor.
+            // Para que TÚ aparezcas en la 'X', movemos el vrGroup:
+            // - Si el profesor está en el centro del modelo (ahora en 0,0,0 de la escena)
+            // - La 'X' está a la izquierda (negativo en X) y adelante (negativo en Z) del profesor.
+            // - Por lo tanto, movemos el vrGroup a las coordenadas de la 'X' para que el usuario (en 0,0,0) esté en la 'X'.
+            //   Asumo que 'X' está a -2m en X y -3m en Z desde el profesor. Ajusta esto.
+            vrGroup.position.set(-2, 0, -3); // ¡AJUSTAR ESTOS VALORES!
             
-            scene.add(vrGroup);
-            console.log("Modelo cargado exitosamente.");
+            scene.add(vrGroup);
+            console.log("Modelo cargado exitosamente.");
+
+            // POSICIONAR LA LUZ PUNTUAL DESPUÉS DE QUE EL MODELO ESTÁ CARGADO
+            // La ponemos en la posición de la 'X' para que ilumine desde el usuario.
+            pointLight.position.copy(vrGroup.position);
+            pointLight.position.y = 1.5; // Altura de la luz
         },
         
         (xhr) => {
@@ -101,11 +139,8 @@ function init() {
         }
     );
     
-    // 7. Loop de Animación
-    // --- LÍNEA CORREGIDA ---
     renderer.setAnimationLoop(animate);
 
-    // 8. Manejar redimensionamiento de ventana
     window.addEventListener('resize', onWindowResize);
 }
 
