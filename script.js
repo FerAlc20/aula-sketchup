@@ -20,23 +20,29 @@ function init() {
 
     // 2. Cámara
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // Posición para modo ESCRITORIO (fuera de la ventana)
-    camera.position.set(3, 2.2, 5);
+    camera.position.set(3, 2.2, 5); // Posición para modo ESCRITORIO
 
     // 3. Luces
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); // Luz ambiental más fuerte
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
     
-    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0); // Luz suave
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
     hemisphereLight.position.set(0, 3, 0);
     scene.add(hemisphereLight);
+
+    // --- LUZ INTERNA AJUSTADA ---
+    // La ponemos en la posición 'X' (donde empiezas en VR)
+    // Coordenadas (-2, 1.5, 3) es aprox. "en la X"
+    const pointLight = new THREE.PointLight(0xffffff, 1.5, 10);
+    pointLight.position.set(-2, 1.5, 3); // ¡POSICIÓN AJUSTADA!
+    scene.add(pointLight);
 
     // Añadimos una cuadrícula (GridHelper) como referencia
     const gridHelper = new THREE.GridHelper(20, 20);
     scene.add(gridHelper);
 
     // 4. Renderizador (Renderer)
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     
@@ -66,47 +72,30 @@ function init() {
         (fbx) => {
             model = fbx;
 
-            // --- ¡NUEVA LÓGICA DE TEXTURAS! ---
+            // --- LÓGICA DE TEXTURAS (SIMPLIFICADA) ---
+            // Eliminamos toda la lógica de transparencia que rompía el piso.
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     
-                    if (child.material) {
-                        // Función para procesar cada material
-                        const processMaterial = (mat) => {
-                            if (mat.map) {
-                                // Siempre ajustamos la codificación de color
-                                mat.map.encoding = THREE.sRGBEncoding;
-                                
-                                // REVISAMOS SI LA TEXTURA ES PNG (para el profesor)
-                                if (mat.map.image && mat.map.image.src.toLowerCase().endsWith('.png')) {
-                                    mat.transparent = true; // Hacer transparente
-                                    mat.alphaTest = 0.1; 
-                                } else {
-                                    // Si es JPG (como el piso), NOS ASEGURAMOS de que NO sea transparente
-                                    mat.transparent = false;
-                                }
-                            }
-                        };
-                        
-                        // Aplicamos la función si es un material o un array de materiales
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(processMaterial);
-                        } else {
-                            processMaterial(child.material);
-                        }
+                    if (child.material && child.material.map) {
+                        child.material.map.encoding = THREE.sRGBEncoding;
                     }
                 }
             });
 
-            // --- ¡NUEVA POSICIÓN VR! ---
+            // --- ¡POSICIÓN VR AJUSTADA! ---
             vrGroup = new THREE.Group();
             vrGroup.add(model);
-
-            // Estos valores mueven el *salón* para que TÚ aparezcas en la 'X'
-            // (2 en X te mueve a la izquierda, 3 en Z te mueve adelante)
-            vrGroup.position.set(2, 0, 3); 
+            
+            // Para moverte a la 'X' (izquierda [-X] y adelante [-Z])
+            // movemos el mundo opuesto (derecha [+X] y atrás [+Z])
+            //
+            // MI CÁLCULO ANTERIOR DE Z ESTABA MAL. Debería ser:
+            // X=2 (te mueve 2 a la izquierda)
+            // Z=-3 (te mueve 3 adelante, hacia el pizarrón)
+            vrGroup.position.set(2, 0, -3); // ¡VALOR Z CORREGIDO!
             
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
@@ -122,7 +111,7 @@ function init() {
     );
     
     // 7. Loop de Animación
-    renderer.setAnimationLoop(animate);
+_    renderer.setAnimationLoop(animate);_
 
     // 8. Manejar redimensionamiento de ventana
     window.addEventListener('resize', onWindowResize);
