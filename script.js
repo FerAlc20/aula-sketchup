@@ -14,19 +14,20 @@ let vrGroup; // Grupo para posicionar el modelo en VR
 init();
 
 function init() {
-    // 1. Escena
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x222222);
+  	// 1. Escena
+  	scene = new THREE.Scene();
+  	scene.background = new THREE.Color(0x222222);
 
-    // 2. Cámara
-    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+  	// 2. Cámara
+  	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
     
-    
-    camera.position.set(0, 1.6, 2); // (Centro, altura de ojos, 2m atrás del centro)
+    // --- 1. POSICIÓN CÁMARA ESCRITORIO (NUEVO CENTRO) ---
+    // Te pone en la nueva posición "central" (2m adentro de la esquina)
+  	camera.position.set(2, 1.6, 2); // (X=2, Y=1.6, Z=2)
 
-    // 3. Luces (Con intensidad aumentada)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
-    scene.add(ambientLight);
+  	// 3. Luces (Con intensidad aumentada)
+  	const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+  	scene.add(ambientLight);
     
     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
     hemisphereLight.position.set(0, 3, 0);
@@ -37,101 +38,102 @@ function init() {
     pointLight.position.set(0, 2, 0); // En el centro del salón
     scene.add(pointLight);
 
-    // Añadimos una cuadrícula (GridHelper) como referencia
-    const gridHelper = new THREE.GridHelper(20, 20);
-    scene.add(gridHelper);
+  	// Añadimos una cuadrícula (GridHelper) como referencia
+  	const gridHelper = new THREE.GridHelper(20, 20);
+  	scene.add(gridHelper);
 
-    // 4. Renderizador (Renderer)
-    renderer = new THREE.WebGLRenderer({ antias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    
+  	// 4. Renderizador (Renderer)
+  	renderer = new THREE.WebGLRenderer({ antias: true });
+  	renderer.setSize(window.innerWidth, window.innerHeight);
+  	renderer.setPixelRatio(window.devicePixelRatio);
+  	 
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.shadowMap.enabled = true;
     
-    // Habilitación de VR
-    renderer.xr.enabled = true;
-    document.body.appendChild(renderer.domElement);
-    
-    // 5. Botón de VR
-    document.body.appendChild(VRButton.createButton(renderer));
-    
-    // Inicializamos los OrbitControls (para modo escritorio)
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.target.set(0, 1.6, 0); // Apuntamos al centro del salón (altura de ojos)
-    controls.update();
+  	// Habilitación de VR
+  	renderer.xr.enabled = true;
+  	document.body.appendChild(renderer.domElement);
+  	 
+  	// 5. Botón de VR
+  	document.body.appendChild(VRButton.createButton(renderer));
+  	 
+  	// Inicializamos los OrbitControls (para modo escritorio)
+  	controls = new OrbitControls(camera, renderer.domElement);
+  	controls.enableDamping = true;
+  	controls.target.set(0, 1.6, 0); // Apuntamos al centro del salón (hacia el profesor)
+  	controls.update();
 
-    // 6. Cargar el modelo FBX
-    const loader = new FBXLoader();
+  	// 6. Cargar el modelo FBX
+  	const loader = new FBXLoader();
     loader.setResourcePath('Mod_1/');
 
-    loader.load(
-        'Mod_1/Mod_1.fbx',
-        
-        // -- onLoad (Cuando se carga bien) --
-        (fbx) => {
-            model = fbx;
+  	loader.load(
+    	'Mod_1/Mod_1.fbx',
+    	 
+    	// -- onLoad (Cuando se carga bien) --
+    	(fbx) => {
+    	 	model = fbx;
 
-            // --- LÓGICA DE CENTRADO (¡ESTO YA FUNCIONA!) ---
-            const bbox = new THREE.Box3().setFromObject(model);
-            const center = bbox.getCenter(new THREE.Vector3());
-            model.position.x -= center.x;
-            model.position.z -= center.z;
-            model.position.y -= bbox.min.y;
+        	// --- LÓGICA DE CENTRADO (Esto centra el salón en la esquina 0,0,0) ---
+        	const bbox = new THREE.Box3().setFromObject(model);
+        	const center = bbox.getCenter(new THREE.Vector3());
+        	model.position.x -= center.x;
+        	model.position.z -= center.z;
+        	model.position.y -= bbox.min.y;
 
-            // --- LÓGICA DE TEXTURAS (¡ESTA YA FUNCIONA!) ---
-            model.traverse((child) => {
-                if (child.isMesh) {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                    
-                    const materials = Array.isArray(child.material) ? child.material : [child.material];
-                    
-                    materials.forEach(mat => {
-                        if (mat && mat.map) {
-                            mat.map.encoding = THREE.sRGBEncoding;
-                            if (mat.map.image && mat.map.image.src.toLowerCase().endsWith('.png')) {
-                                mat.transparent = true;
-                                mat.alphaTest = 0.1;
-                            }
-                        }
-                        if (mat && (mat.name.toLowerCase().includes('glass') || mat.name.toLowerCase().includes('vidrio'))) {
-                            mat.transparent = true;
-                            mat.opacity = 0.2;
-                        }
-                    });
-                }
-            });
-            
-            // --- 2. ¡POSICIÓN VR (EN EL CENTRO)! ---
-            vrGroup = new THREE.Group();
-            vrGroup.add(model); // Añadimos el modelo ya centrado
+        	// --- LÓGICA DE TEXTURAS (Piso, Profesor, Ventanas) ---
+        	model.traverse((child) => {
+            	if (child.isMesh) {
+                	child.castShadow = true;
+                	child.receiveShadow = true;
+                	
+                	const materials = Array.isArray(child.material) ? child.material : [child.material];
+                	
+                	materials.forEach(mat => {
+                    	if (mat && mat.map) {
+                        	mat.map.encoding = THREE.sRGBEncoding;
+                        	if (mat.map.image && mat.map.image.src.toLowerCase().endsWith('.png')) {
+                            	mat.transparent = true;
+                            	mat.alphaTest = 0.1;
+                        	}
+                    	}
+                    	if (mat && (mat.name.toLowerCase().includes('glass') || mat.name.toLowerCase().includes('vidrio'))) {
+                        	mat.transparent = true;
+                        	mat.opacity = 0.2;
+                    	}
+                	});
+            	}
+        	});
+        	
+        	// --- 2. ¡POSICIÓN VR (EN EL CENTRO)! ---
+        	vrGroup = new THREE.Group();
+        	vrGroup.add(model); // Añadimos el modelo ya centrado
 
-            // Al poner (0,0,0), tú (que empiezas en 0,0,0)
-            // aparecerás en el centro del salón (que también está en 0,0,0).
-            vrGroup.position.set(0, 0, 0); 
-            
-            scene.add(vrGroup);
-            console.log("Modelo cargado exitosamente.");
-        },
-        
-        // -- onProgress (Mientras carga) --
-        (xhr) => {
-            console.log((xhr.loaded / xhr.total * 100) + '% cargado');
-        },
-        
-        // -- onError (Si falla) --
-        (error) => {
-            console.error('Error al cargar el modelo FBX:', error);
-        }
-    );
-    
-    // 7. Loop de Animación
-    renderer.setAnimationLoop(animate);
+        	// Movemos el salón 2m a la derecha y 2m atrás.
+        	// Esto hace que TÚ (en 0,0,0) aparezcas 2m a la izquierda
+        	// y 2m adelante de la esquina, (¡dentro del salón!)
+        	vrGroup.position.set(2, 0, 2); 
+        	
+    	 	scene.add(vrGroup);
+    	 	console.log("Modelo cargado exitosamente.");
+    	},
+    	 
+    	// -- onProgress (Mientras carga) --
+    	(xhr) => {
+    	 	console.log((xhr.loaded / xhr.total * 100) + '% cargado');
+    	},
+  	 
+    	// -- onError (Si falla) --
+  	 	(error) => {
+    	 	console.error('Error al cargar el modelo FBX:', error);
+    	}
+  	);
+  	 
+  	// 7. Loop de Animación
+  	renderer.setAnimationLoop(animate);
 
-    // 8. Manejar redimensionamiento de ventana
-    window.addEventListener('resize', onWindowResize);
+  	// 8. Manejar redimensionamiento de ventana
+  	window.addEventListener('resize', onWindowResize);
 }
 
 // --- FUNCIONES AUXILIARES ---
@@ -139,13 +141,13 @@ function init() {
 function animate() {
     // No muevas la cámara con el mouse si estás en VR
     if (renderer.xr.isPresenting === false) {
-F        controls.update();
+  	    controls.update();
     }
-    renderer.render(scene, camera);
+  	renderer.render(scene, camera);
 }
 
 function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+  	camera.aspect = window.innerWidth / window.innerHeight;
+  	camera.updateProjectionMatrix();
+  	renderer.setSize(window.innerWidth, window.innerHeight);
 }
