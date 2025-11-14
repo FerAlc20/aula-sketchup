@@ -20,6 +20,7 @@ function init() {
 
     // 2. Cámara
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    // Posición para modo ESCRITORIO (vista de "Dios" desde arriba)
     camera.position.set(10, 15, 10);
 
     // 3. Luces
@@ -73,15 +74,20 @@ function init() {
         (fbx) => {
             model = fbx;
 
-          
+            // --- ¡SOLUCIÓN DE POSICIÓN #1: CENTRAR EL SALÓN! ---
+            // (Esto arregla el problema del "hombrecito amarillo")
+            // 1. Encontramos el centro del salón (que está lejos)
             const bbox = new THREE.Box3().setFromObject(model);
             const center = bbox.getCenter(new THREE.Vector3());
 
+            // 2. Movemos el *modelo* para que su centro esté en (0,0,0)
             model.position.x -= center.x;
             model.position.z -= center.z;
             
+            // 3. Movemos el modelo para que su *piso* toque el suelo (Y=0)
             model.position.y -= bbox.min.y;
 
+            // --- ¡SOLUCIÓN DE TEXTURAS (PISO Y PROFESOR)! ---
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -91,12 +97,15 @@ function init() {
                     
                     materials.forEach(mat => {
                         if (mat && mat.map) {
+                            // Arregla el color de TODAS las texturas
                             mat.map.encoding = THREE.sRGBEncoding;
 
+                            // REVISA SI LA TEXTURA ES PNG (para el profesor)
                             if (mat.map.image && mat.map.image.src.toLowerCase().endsWith('.png')) {
                                 mat.transparent = true; // Hacer transparente
                                 mat.alphaTest = 0.1; // Evita bordes feos
                             } else {
+                                // SI ES JPG (piso, pared), la forzamos a NO ser transparente
                                 mat.transparent = false;
                             }
                         }
@@ -104,19 +113,20 @@ function init() {
                 }
             });
             
+            // --- ¡SOLUCIÓN DE POSICIÓN #2: MOVERTE A LA 'X'! ---
             vrGroup = new THREE.Group();
             vrGroup.add(model); // Añadimos el modelo ya centrado al grupo
 
-       
-          
+            // Movemos el grupo para ponerte en la 'X'
+            // (X=-5 te mueve a la derecha, Z=-4 te mueve hacia la ventana)
             vrGroup.position.set(-5, 0, -4); 
             
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
         },
         
-   
-      
+        // -- onProgress (Mientras carga) --
+        // ¡SIN LA 's' QUE CAUSABA EL ERROR DE SINTAXIS!
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% cargado');
         },
@@ -137,6 +147,7 @@ function init() {
 // --- FUNCIONES AUXILIARES ---
 
 function animate() {
+    // No muevas la cámara con el mouse si estás en VR
     if (renderer.xr.isPresenting === false) {
         controls.update();
     }
