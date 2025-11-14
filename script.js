@@ -68,7 +68,6 @@ function init() {
         (fbx) => {
             model = fbx;
 
-            // --- ¡SOLUCIÓN DE POSICIÓN #1: CENTRAR EL MODELO! ---
             const bbox = new THREE.Box3().setFromObject(model);
             const center = bbox.getCenter(new THREE.Vector3());
 
@@ -91,17 +90,15 @@ function init() {
                 }
             });
             
-            // --- ¡SOLUCIÓN DE POSICIÓN #2: MOVERTE A LA 'X'! ---
             vrGroup = new THREE.Group();
             vrGroup.add(model); // Añadimos el modelo ya centrado al grupo
 
-            // (X=-5 te mueve a la derecha, Z=-4 te mueve hacia la ventana)
             vrGroup.position.set(-5, 0, -4); 
             
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
         },
-        // --- LÍNEA CORREGIDA (SE ELIMINÓ LA 's') ---
+        
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% cargado');
         },
