@@ -20,21 +20,21 @@ function init() {
 
     // 2. Cámara
     camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-    // Posición para modo ESCRITORIO (vista de "Dios" desde arriba)
-    camera.position.set(10, 15, 10);
+    
+    
+    camera.position.set(0, 1.6, 2); // (Centro, altura de ojos, 2m atrás del centro)
 
-    // 3. Luces
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    // 3. Luces (Con intensidad aumentada)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
     
-    // Luz direccional (Sol) para la vista exterior
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    directionalLight.position.set(5, 10, 7.5);
-    scene.add(directionalLight);
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+    hemisphereLight.position.set(0, 3, 0);
+    scene.add(hemisphereLight);
 
-    // Luz interna para que se vea bien en VR
-    const pointLight = new THREE.PointLight(0xffffff, 1.0, 15);
-    pointLight.position.set(0, 2, 0); // La pondremos en el centro del salón
+    // Luz interna
+    const pointLight = new THREE.PointLight(0xffffff, 1.5, 20);
+    pointLight.position.set(0, 2, 0); // En el centro del salón
     scene.add(pointLight);
 
     // Añadimos una cuadrícula (GridHelper) como referencia
@@ -42,11 +42,10 @@ function init() {
     scene.add(gridHelper);
 
     // 4. Renderizador (Renderer)
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({ antias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     
-    // Arreglo de texturas y colores
     renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.shadowMap.enabled = true;
     
@@ -60,7 +59,7 @@ function init() {
     // Inicializamos los OrbitControls (para modo escritorio)
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.target.set(0, 0, 0); // Apuntamos al centro (0,0,0)
+    controls.target.set(0, 1.6, 0); // Apuntamos al centro del salón (altura de ojos)
     controls.update();
 
     // 6. Cargar el modelo FBX
@@ -74,20 +73,14 @@ function init() {
         (fbx) => {
             model = fbx;
 
-            // --- ¡SOLUCIÓN DE POSICIÓN #1: CENTRAR EL SALÓN! ---
-            // (Esto arregla el problema del "hombrecito amarillo")
-            // 1. Encontramos el centro del salón (que está lejos)
+            // --- LÓGICA DE CENTRADO (¡ESTO YA FUNCIONA!) ---
             const bbox = new THREE.Box3().setFromObject(model);
             const center = bbox.getCenter(new THREE.Vector3());
-
-            // 2. Movemos el *modelo* para que su centro esté en (0,0,0)
             model.position.x -= center.x;
             model.position.z -= center.z;
-            
-            // 3. Movemos el modelo para que su *piso* toque el suelo (Y=0)
             model.position.y -= bbox.min.y;
 
-            // --- ¡SOLUCIÓN DE TEXTURAS (PISO Y PROFESOR)! ---
+            // --- LÓGICA DE TEXTURAS (¡ESTA YA FUNCIONA!) ---
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -97,36 +90,33 @@ function init() {
                     
                     materials.forEach(mat => {
                         if (mat && mat.map) {
-                            // Arregla el color de TODAS las texturas
                             mat.map.encoding = THREE.sRGBEncoding;
-
-                            // REVISA SI LA TEXTURA ES PNG (para el profesor)
                             if (mat.map.image && mat.map.image.src.toLowerCase().endsWith('.png')) {
-                                mat.transparent = true; // Hacer transparente
-                                mat.alphaTest = 0.1; // Evita bordes feos
-                            } else {
-                                // SI ES JPG (piso, pared), la forzamos a NO ser transparente
-                                mat.transparent = false;
+                                mat.transparent = true;
+                                mat.alphaTest = 0.1;
                             }
+                        }
+                        if (mat && (mat.name.toLowerCase().includes('glass') || mat.name.toLowerCase().includes('vidrio'))) {
+                            mat.transparent = true;
+                            mat.opacity = 0.2;
                         }
                     });
                 }
             });
             
-            // --- ¡SOLUCIÓN DE POSICIÓN #2: MOVERTE A LA 'X'! ---
+            // --- 2. ¡POSICIÓN VR (EN EL CENTRO)! ---
             vrGroup = new THREE.Group();
-            vrGroup.add(model); // Añadimos el modelo ya centrado al grupo
+            vrGroup.add(model); // Añadimos el modelo ya centrado
 
-            // Movemos el grupo para ponerte en la 'X'
-            // (X=-5 te mueve a la derecha, Z=-4 te mueve hacia la ventana)
-            vrGroup.position.set(-5, 0, -4); 
+            // Al poner (0,0,0), tú (que empiezas en 0,0,0)
+            // aparecerás en el centro del salón (que también está en 0,0,0).
+            vrGroup.position.set(0, 0, 0); 
             
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
         },
         
         // -- onProgress (Mientras carga) --
-        // ¡SIN LA 's' QUE CAUSABA EL ERROR DE SINTAXIS!
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% cargado');
         },
@@ -149,7 +139,7 @@ function init() {
 function animate() {
     // No muevas la cámara con el mouse si estás en VR
     if (renderer.xr.isPresenting === false) {
-        controls.update();
+F        controls.update();
     }
     renderer.render(scene, camera);
 }
