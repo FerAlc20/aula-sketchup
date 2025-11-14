@@ -23,13 +23,16 @@ function init() {
     // Posición para modo ESCRITORIO (fuera de la ventana)
     camera.position.set(3, 2.2, 5);
 
-    // 3. Luces
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    // 3. Luces (¡CAMBIOS IMPORTANTES!)
+    // Luz ambiental más fuerte para que no se vea negro
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(1, 2, 3);
-    directionalLight.castShadow = true; // Opcional, para sombras
-    scene.add(directionalLight);
+    
+    // Luz hemisférica: Da una iluminación global suave, ideal para VR.
+    // (Color del cielo, color del suelo, intensidad)
+    const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+    hemisphereLight.position.set(0, 3, 0);
+    scene.add(hemisphereLight);
 
     // Añadimos una cuadrícula (GridHelper) como referencia
     const gridHelper = new THREE.GridHelper(20, 20);
@@ -40,10 +43,9 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     
-    // --- AJUSTE DE TEXTURAS (Color) ---
-    // Asegura que los colores y texturas se vean correctamente (evita que se vean "lavados")
+    // Ajuste de color
     renderer.outputEncoding = THREE.sRGBEncoding;
-    renderer.shadowMap.enabled = true; // Habilita sombras
+    renderer.shadowMap.enabled = true;
     
     // Habilitación de VR
     renderer.xr.enabled = true;
@@ -55,49 +57,46 @@ function init() {
     // Inicializamos los OrbitControls (para modo escritorio)
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    // Apuntamos al profesor
     controls.target.set(0, 1.6, 0); 
     controls.update();
 
     // 6. Cargar el modelo FBX
     const loader = new FBXLoader();
-    
-    // Define la ruta base para las texturas
     loader.setResourcePath('Mod_1/');
 
     loader.load(
-        'Mod_1/Mod_1.fbx', // Carga el modelo
+        'Mod_1/Mod_1.fbx',
         
         (fbx) => {
             model = fbx;
 
-            // --- AJUSTE DE TEXTURAS (Materiales) ---
-            // Recorremos el modelo buscando mallas (meshes)
+            // --- AJUSTE DE TEXTURAS Y TRANSPARENCIA (¡CAMBIO IMPORTANTE!) ---
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     
-                    // Si el material tiene una textura (map), ajustamos su codificación
+                    // Si el material tiene una textura (map)...
                     if (child.material && child.material.map) {
                         child.material.map.encoding = THREE.sRGBEncoding;
+                        
+                        // --- FORZAMOS LA TRANSPARENCIA ---
+                        // Esto es para que el "profesor" (que es un PNG) se vea
+                        child.material.transparent = true;
+                        child.material.alphaTest = 0.1; // Evita bordes feos en la transparencia
                     }
                 }
             });
 
-            // --- AJUSTE POSICIÓN VR ---
-            // Creamos un grupo para controlar la posición en VR
+            // --- AJUSTE POSICIÓN VR (¡CAMBIO IMPORTANTE!) ---
             vrGroup = new THREE.Group();
-            vrGroup.add(model); // Añadimos el modelo al grupo
+            vrGroup.add(model);
 
-            // Asumimos que el origen (0,0,0) del modelo es el profesor.
-            // Queremos que el usuario (que en VR es 0,0,0) aparezca
-            // un poco detrás del profesor para ver el salón.
-            // Ajusta estos valores X, Z para moverte dentro del salón.
-            // (X=0, Y=0, Z=1.5) te pone 1.5 metros detrás del profesor.
-            vrGroup.position.set(0, 0, 1.5); 
+            // Regresamos la posición del grupo al origen (0,0,0)
+            // Esto hará que aparezcas EN EL ORIGEN (centro del salón)
+            // que es lo que querías.
+            vrGroup.position.set(0, 0, 0); 
             
-            // Añadimos el GRUPO (no el modelo) a la escena
             scene.add(vrGroup);
             console.log("Modelo cargado exitosamente.");
         },
